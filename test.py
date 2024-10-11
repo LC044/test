@@ -46,10 +46,11 @@ def init():
             connection.close()
 
 
-init()
+# init()
 og = OpenGauss('test1')
-og.init_database()
-og.insert_one_row()
-og.insert_many_rows(5)
+# og.init_database()
+og.random_operation()
+# og.insert_one()
+# og.insert_many_rows(5)
 og.print()
 
