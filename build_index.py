@@ -1,13 +1,17 @@
 import traceback
 import psycopg2
-from opengauss import OpenGauss
+from database.opengauss import OpenGauss
 import multiprocessing
 import random
-from logger import logger
+from log.logger import logger
 
 class Phase1(OpenGauss):
+    """
+    创建在线索引
+    """
     def __init__(self, dbname):
         super().__init__(dbname)
+        self.connection.autocommit = True
 
     def create_index(self):
         sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
@@ -35,9 +39,10 @@ class Phase2(OpenGauss):
             p.join()
         self.close()
 
-
-
 class Phase4(OpenGauss):
+    """
+    对比索引和表数据的差异
+    """
     def __init__(self, dbname):
         super().__init__(dbname)
     
@@ -76,7 +81,7 @@ class Phase4(OpenGauss):
                 print("Data in index but missing in table:", missing_in_table)
     
     def run(self):
-        table = 'users1'
+        table = 'users'
         columns = ['name', 'email']
          # 获取表中的多列组合数据
         table_data = self.get_table_data(table, columns)
@@ -85,11 +90,52 @@ class Phase4(OpenGauss):
         # 获取索引中的多列组合数据
         index_data = self.get_index_data(table, columns)
         print(f"Index data count: {len(index_data)}")
-
         # 比较表数据和索引数据
         self.compare_data(table_data, index_data)
-
         self.close()
+
+def init(dbname):
+    # 初始化数据库
+    connection_params = {
+        'host': '127.0.0.1',
+        'port': '33000',
+        'dbname': 'postgres',
+        'user': 'shuaikangzhou',
+        'password': 'zhou@123'
+    }
+
+    try:
+        # 连接数据库
+        connection = psycopg2.connect(**connection_params)
+        connection.autocommit = True
+        cursor = connection.cursor()
+
+        # 插入数据（在事务中）
+        insert_query = f"""
+        DROP DATABASE IF EXISTS {dbname};
+        """
+        cursor.execute(insert_query)
+        logger.info(f'删除数据库 {dbname}')
+        connection.commit()
+        # 插入数据（在事务中）
+        insert_query = f"""
+        CREATE DATABASE {dbname};
+        """
+        cursor.execute(insert_query)
+        logger.info(f'创建数据库 {dbname}')
+        connection.commit()
+        
+    except psycopg2.Error as e:
+        print(f"数据库错误: {e}")
+        # 出错时回滚
+        connection.rollback()
+
+    finally:
+        # 关闭游标和数据库连接
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 if __name__ == '__main__':
     phase4 = Phase4('test1')

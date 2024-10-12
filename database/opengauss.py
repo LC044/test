@@ -2,10 +2,26 @@ import traceback
 import psycopg2
 import random
 from faker import Faker
+from log.logger import logger
 
 fake = Faker()
 
-from logger import logger
+# 定义装饰器，处理异常并回滚事务
+def rollback_on_failure(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            # 调用实际的函数
+            result = func(self, *args, **kwargs)
+            logger.info(f'{func.__name__}')
+            return result
+        except Exception as e:
+            # 如果发生错误，则回滚事务
+            logger.info(f"Error occurred: {e}. Rolling back the transaction.")
+            self.connection.rollback()  # 回滚事务
+        finally:
+            # 可选地关闭游标或其他资源清理
+            pass
+    return wrapper
 
 
 class OpenGauss:
@@ -38,6 +54,7 @@ class OpenGauss:
         self.cursor.execute(sql)
         self.connection.commit()
 
+    @rollback_on_failure
     def insert_one(self):
         sql = '''INSERT INTO users (name, age, email) VALUES(%s,%s,%s);'''
         # 生成随机数据
@@ -47,12 +64,14 @@ class OpenGauss:
         self.cursor.execute(sql, [random_name, random_age, random_email])
         self.connection.commit()
 
+    @rollback_on_failure
     def delete_one(self):
         # 随机删除一条记录
         query = "DELETE FROM users WHERE id = (SELECT id FROM users ORDER BY RANDOM() LIMIT 1)"
         self.cursor.execute(query)
         self.connection.commit()
 
+    @rollback_on_failure
     def update_one(self):
         choice = random.random()
         if choice < 0.33:
@@ -67,6 +86,7 @@ class OpenGauss:
         self.cursor.execute(query, (new_data,))
         self.connection.commit()
 
+    @rollback_on_failure
     def insert_many_rows(self, n):
         sql = '''INSERT INTO users (name, age, email) VALUES(%s,%s,%s);'''
         for _ in range(n):
@@ -77,6 +97,7 @@ class OpenGauss:
             self.cursor.execute(sql, [random_name, random_age, random_email])
         self.connection.commit()
 
+    @rollback_on_failure
     def random_operation(self):
         op_num = random.randint(5, 10)
         for i in range(op_num):
@@ -85,7 +106,6 @@ class OpenGauss:
                 operations = [self.insert_one, self.delete_one, self.update_one]
                 operation = random.choice(operations)
                 operation()
-                logger.info(operation.__name__)
             except:
                 logger.error(traceback.format_exc())
 

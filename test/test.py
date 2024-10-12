@@ -1,6 +1,7 @@
 import psycopg2
-from opengauss import OpenGauss
-from logger import logger
+from log.logger import logger
+from database.opengauss import OpenGauss
+
 
 def init():
     # 初始化数据库
@@ -46,9 +47,9 @@ def init():
             connection.close()
 
 
-# init()
+init()
 og = OpenGauss('test1')
-# og.init_database()
+og.init_database()
 og.random_operation()
 # og.insert_one()
 # og.insert_many_rows(5)

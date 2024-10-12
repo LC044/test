@@ -8,9 +8,9 @@ logger = logging.getLogger('test')
 logger.setLevel(level=logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 try:
-    if not os.path.exists('./app/log/logs'):
-        os.mkdir('./app/log/logs')
-    file_handler = logging.FileHandler(f'./app/log/logs/{filename}-log.log')
+    if not os.path.exists('./log/logs'):
+        os.mkdir('./log/logs')
+    file_handler = logging.FileHandler(f'./log/logs/{filename}-log.log')
 except:
     file_handler = logging.FileHandler(f'日志文件-{filename}-log.log')
 
