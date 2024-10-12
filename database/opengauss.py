@@ -6,6 +6,14 @@ from log.logger import logger
 
 fake = Faker()
 
+connection_params = {
+    'host': '127.0.0.1',
+    'port': '33000',
+    'dbname': 'postgres',
+    'user': 'shuaikangzhou',
+    'password': 'zhou@123'
+}
+
 # 定义装饰器，处理异常并回滚事务
 def rollback_on_failure(func):
     def wrapper(self, *args, **kwargs):
@@ -28,14 +36,9 @@ class OpenGauss:
     def __init__(self, dbname):
         self.dbname = dbname
         # 配置数据库连接信息
-        connection_params = {
-            'host': '127.0.0.1',
-            'port': '33000',
-            'dbname': dbname,
-            'user': 'shuaikangzhou',
-            'password': 'zhou@123'
-        }
-        self.connection = psycopg2.connect(**connection_params)
+        my_connection_params = connection_params.copy()
+        my_connection_params['dbname'] = dbname
+        self.connection = psycopg2.connect(**my_connection_params)
         self.cursor = self.connection.cursor()
 
     def init_database(self):

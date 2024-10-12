@@ -1,6 +1,6 @@
 import traceback
 import psycopg2
-from database.opengauss import OpenGauss
+from database.opengauss import OpenGauss,connection_params
 import multiprocessing
 import random
 from log.logger import logger
@@ -90,14 +90,6 @@ class Phase4(OpenGauss):
 
 def init(dbname):
     # 初始化数据库
-    connection_params = {
-        'host': '127.0.0.1',
-        'port': '33000',
-        'dbname': 'postgres',
-        'user': 'shuaikangzhou',
-        'password': 'zhou@123'
-    }
-
     try:
         # 连接数据库
         connection = psycopg2.connect(**connection_params)
