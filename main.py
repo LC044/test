@@ -11,12 +11,16 @@ def phase1_task():
     phase1.run()
 
 def phase2_task():
+    print('阶段二开始')
     phase2 = Phase2(dbname)
     phase2.run()
+    print('阶段二结束')
 
 def phase3_task():
+    print('阶段三开始')
     phase3 = Phase2(dbname)
     phase3.run()
+    print('阶段三结束')
 
 def phase4_task():
     phase4 = Phase4(dbname)

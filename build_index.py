@@ -30,13 +30,7 @@ class Phase2(OpenGauss):
         num_processes = 5
         processes = []
         for _ in range(num_processes):
-            p = multiprocessing.Process(target=self.random_operation)
-            processes.append(p)
-            p.start()
-
-        # 等待所有进程完成
-        for p in processes:
-            p.join()
+            self.random_operation()
         self.close()
 
 class Phase4(OpenGauss):
@@ -111,20 +105,16 @@ def init(dbname):
         cursor = connection.cursor()
 
         # 插入数据（在事务中）
-        insert_query = f"""
-        DROP DATABASE IF EXISTS {dbname};
-        """
+        insert_query = f"""DROP DATABASE IF EXISTS {dbname};"""
         cursor.execute(insert_query)
         logger.info(f'删除数据库 {dbname}')
         connection.commit()
         # 插入数据（在事务中）
-        insert_query = f"""
-        CREATE DATABASE {dbname};
-        """
+        insert_query = f"""CREATE DATABASE {dbname};"""
         cursor.execute(insert_query)
         logger.info(f'创建数据库 {dbname}')
         connection.commit()
-        
+
     except psycopg2.Error as e:
         print(f"数据库错误: {e}")
         # 出错时回滚
@@ -138,5 +128,8 @@ def init(dbname):
             connection.close()
 
 if __name__ == '__main__':
-    phase4 = Phase4('test1')
-    phase4.run()
+    # phase4 = Phase4('test1')
+    # phase4.run()
+
+    phase2 = Phase2('test1')
+    phase2.run()

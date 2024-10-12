@@ -12,7 +12,7 @@ def rollback_on_failure(func):
         try:
             # 调用实际的函数
             result = func(self, *args, **kwargs)
-            logger.info(f'{func.__name__}')
+            logger.info(f'【operation】{func.__name__}')
             return result
         except Exception as e:
             # 如果发生错误，则回滚事务
