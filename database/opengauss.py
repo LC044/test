@@ -1,6 +1,7 @@
 import traceback
 import psycopg2
 import random
+from tqdm import *
 from faker import Faker
 from log.logger import logger
 
@@ -20,7 +21,7 @@ def rollback_on_failure(func):
         try:
             # 调用实际的函数
             result = func(self, *args, **kwargs)
-            logger.info(f'【operation】{func.__name__}')
+            # logger.info(f'【operation】{func.__name__}')
             return result
         except Exception as e:
             # 如果发生错误，则回滚事务
@@ -48,34 +49,38 @@ class OpenGauss:
 
         -- 创建表，并包含主键和其他字段
         CREATE TABLE users (
-            id SERIAL PRIMARY KEY,  -- 主键字段，使用 SERIAL 类型自动生成唯一ID
-            name VARCHAR(100),      -- 示例字段1：名字
-            age INT,                -- 示例字段2：年龄
-            email VARCHAR(255)      -- 示例字段3：电子邮件
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100),
+            age INT,
+            email VARCHAR(255)
         ) with (storage_type=ustore);
         '''
         self.cursor.execute(sql)
         self.connection.commit()
 
     @rollback_on_failure
-    def insert_one(self):
+    def insert_one(self,commit=True):
         sql = '''INSERT INTO users (name, age, email) VALUES(%s,%s,%s);'''
         # 生成随机数据
         random_name = fake.name()
         random_age = fake.random_int(min=18, max=80)
         random_email = fake.email()
         self.cursor.execute(sql, [random_name, random_age, random_email])
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
 
     @rollback_on_failure
-    def delete_one(self):
+    def delete_one(self,commit=True):
+        # return
         # 随机删除一条记录
         query = "DELETE FROM users WHERE id = (SELECT id FROM users ORDER BY RANDOM() LIMIT 1)"
         self.cursor.execute(query)
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
 
     @rollback_on_failure
-    def update_one(self):
+    def update_one(self,commit=True):
+        # return
         choice = random.random()
         if choice < 0.33:
             new_data = fake.random_int(min=18, max=80)
@@ -87,27 +92,41 @@ class OpenGauss:
             new_data = fake.email()
             query = "UPDATE users SET email = %s WHERE id = (SELECT id FROM users ORDER BY RANDOM() LIMIT 1)"
         self.cursor.execute(query, (new_data,))
-        self.connection.commit()
+        if commit:
+            self.connection.commit()
 
     @rollback_on_failure
-    def insert_many_rows(self, n):
-        sql = '''INSERT INTO users (name, age, email) VALUES(%s,%s,%s);'''
+    def insert_many_rows(self, n=10):
         for _ in range(n):
             # 生成随机数据
-            random_name = fake.name()
-            random_age = fake.random_int(min=18, max=80)
-            random_email = fake.email()
-            self.cursor.execute(sql, [random_name, random_age, random_email])
+            self.insert_one(commit=False)
         self.connection.commit()
 
     @rollback_on_failure
-    def random_operation(self):
-        op_num = random.randint(5, 10)
-        for i in range(op_num):
+    def delete_many_rows(self, n=10):
+        for _ in range(n):
+            # 生成随机数据
+            self.delete_one(commit=False)
+        self.connection.commit()
+
+    @rollback_on_failure
+    def update_many_rows(self, n=10):
+        for _ in range(n):
+            # 生成随机数据
+            self.update_one(commit=False)
+        self.connection.commit()
+
+    @rollback_on_failure
+    def random_operation(self,op_num=100,op_rate=(3,3,4)):
+        operations_insert = [self.insert_one,self.insert_many_rows]*op_rate[0]
+        operations_delete = [self.delete_one,self.delete_many_rows]*op_rate[1]
+        operations_update = [self.update_one ,self.update_many_rows]*op_rate[2]
+        operations = operations_insert + operations_delete + operations_update
+        for i in tqdm(range(op_num)):
             try:
                 # 随机选择操作
-                operations = [self.insert_one, self.delete_one, self.update_one]
-                operation = random.choice(operations)
+                op = random.randrange(0,len(operations))
+                operation = operations[op]
                 operation()
             except:
                 logger.error(traceback.format_exc())

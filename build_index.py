@@ -15,6 +15,7 @@ class Phase1(OpenGauss):
 
     def create_index(self):
         sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
+        # sql = '''CREATE INDEX concurrently idx_users_age ON users(age);'''
         self.cursor.execute(sql)
         self.connection.commit()
 
@@ -30,7 +31,18 @@ class Phase2(OpenGauss):
         num_processes = 5
         processes = []
         for _ in range(num_processes):
-            self.random_operation()
+            self.random_operation(1000,op_rate=(4,1,4))
+        self.close()
+
+class Phase3(OpenGauss):
+    def __init__(self, dbname):
+        super().__init__(dbname)
+
+    def run(self):
+        num_processes = 5
+        processes = []
+        for _ in range(num_processes):
+            self.random_operation(50,op_rate=[1,3,3])
         self.close()
 
 class Phase4(OpenGauss):
@@ -77,6 +89,7 @@ class Phase4(OpenGauss):
     def run(self):
         table = 'users'
         columns = ['name', 'email']
+        # columns = ['age']
          # 获取表中的多列组合数据
         table_data = self.get_table_data(table, columns)
         print(f"Table data count: {len(table_data)}")
@@ -120,8 +133,8 @@ def init(dbname):
             connection.close()
 
 if __name__ == '__main__':
-    # phase4 = Phase4('test1')
-    # phase4.run()
+    phase4 = Phase4('test1')
+    phase4.run()
 
-    phase2 = Phase2('test1')
-    phase2.run()
+    # phase2 = Phase2('test1')
+    # phase2.run()

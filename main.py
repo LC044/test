@@ -1,7 +1,7 @@
 import multiprocessing
 import socket
 
-from build_index import Phase1, Phase2, Phase4, init
+from build_index import Phase1, Phase2, Phase4, init, Phase3
 from database.opengauss import OpenGauss
 
 dbname = 'test1'
@@ -18,7 +18,7 @@ def phase2_task():
 
 def phase3_task():
     print('阶段三开始')
-    phase3 = Phase2(dbname)
+    phase3 = Phase3(dbname)
     phase3.run()
     print('阶段三结束')
 
@@ -31,8 +31,8 @@ def insert_data():
     og.init_database()
     og.random_operation()
     og.insert_one()
-    og.insert_many_rows(5)
-    og.print()
+    og.insert_many_rows(500)
+    # og.print()
     og.close()
 
 def main():
@@ -61,6 +61,8 @@ def main():
 
     # 6. 通知openGauss进入阶段3
     conn.send(b"phase 2 completed, start phase3")
+    data = conn.recv(1024)
+    print(f"C++ task completed signal received. {data} ")
 
     # 7. 执行阶段3的DML操作
     phase3_task()
@@ -72,6 +74,7 @@ def main():
 
     # 9. 执行任务4，验证索引的正确性
     phase4_task()
+    server_socket.close()
 
 if __name__ == '__main__':
     main()
