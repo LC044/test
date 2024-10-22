@@ -1,8 +1,10 @@
 import multiprocessing
 import socket
+import traceback
 
 from build_index import Phase1, Phase2, Phase4, init, Phase3
 from database.opengauss import OpenGauss
+from log.logger import logger
 
 dbname = 'test1'
 
@@ -36,45 +38,50 @@ def insert_data():
     og.close()
 
 def main():
-    # 1. 初始化数据库
-    init(dbname)
+    try:
+        # 1. 初始化数据库
+        init(dbname)
 
-    # 2. 插入一些数据
-    insert_data()
+        # 2. 插入一些数据
+        insert_data()
 
-    # 3. 创建进程执行在线创建索引任务
-    task1_process = multiprocessing.Process(target=phase1_task)
-    task1_process.start()
+        # 3. 创建进程执行在线创建索引任务
+        task1_process = multiprocessing.Process(target=phase1_task)
+        task1_process.start()
 
-    # 启动TCP服务器
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('127.0.0.1', 8080))
-    server_socket.listen(1)
-    print("Server is listening on port 8080...")
+        # 启动TCP服务器
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(('127.0.0.1', 8080))
+        server_socket.listen(1)
+        print("Server is listening on port 8080...")
 
-    # 4. 等待客户端连接（openGauss进入阶段2）
-    conn, addr = server_socket.accept()
-    print(f"Connection from {addr} established.")
+        # 4. 等待客户端连接（openGauss进入阶段2）
+        conn, addr = server_socket.accept()
+        print(f"Connection from {addr} established.")
 
-    # 5. 执行阶段2的DML操作
-    phase2_task()
+        # 5. 执行阶段2的DML操作
+        phase2_task()
 
-    # 6. 通知openGauss进入阶段3
-    conn.send(b"phase 2 completed, start phase3")
-    data = conn.recv(1024)
-    print(f"C++ task completed signal received. {data} ")
+        # 6. 通知openGauss进入阶段3
+        conn.send(b"phase 2 completed, start phase3")
+        data = conn.recv(1024)
+        print(f"C++ task completed signal received. {data} ")
 
-    # 7. 执行阶段3的DML操作
-    phase3_task()
+        # 7. 执行阶段3的DML操作
+        phase3_task()
+        conn.send(b"phase 3 completed, start phase4")
+        print('phase 3 completed, start phase4')
+        # 8. 等待openGauss索引创建完成
+        data = conn.recv(1024)
+        print(f"C++ task completed signal received. {data} ")
+        print(f"index build completed. receive")
 
-    # 8. 等待openGauss索引创建完成
-    data = conn.recv(1024)
-    print(f"C++ task completed signal received. {data} ")
-    print(f"index build completed. receive")
-
-    # 9. 执行任务4，验证索引的正确性
-    phase4_task()
-    server_socket.close()
+        # 9. 执行任务4，验证索引的正确性
+        phase4_task()
+    finally:
+        logger.error(traceback.format_exc())
+        server_socket.close()
+        print('close')
 
 if __name__ == '__main__':
     main()

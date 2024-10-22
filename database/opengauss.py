@@ -41,6 +41,7 @@ class OpenGauss:
         my_connection_params['dbname'] = dbname
         self.connection = psycopg2.connect(**my_connection_params)
         self.cursor = self.connection.cursor()
+        self.roll_back_rate = 0.08
 
     def init_database(self):
         sql = '''
@@ -67,6 +68,9 @@ class OpenGauss:
         random_email = fake.email()
         self.cursor.execute(sql, [random_name, random_age, random_email])
         if commit:
+            if random.random() < self.roll_back_rate:
+                self.connection.rollback()
+                return
             self.connection.commit()
 
     @rollback_on_failure
@@ -76,6 +80,9 @@ class OpenGauss:
         query = "DELETE FROM users WHERE id = (SELECT id FROM users ORDER BY RANDOM() LIMIT 1)"
         self.cursor.execute(query)
         if commit:
+            if random.random() < self.roll_back_rate:
+                self.connection.rollback()
+                return
             self.connection.commit()
 
     @rollback_on_failure
@@ -93,6 +100,9 @@ class OpenGauss:
             query = "UPDATE users SET email = %s WHERE id = (SELECT id FROM users ORDER BY RANDOM() LIMIT 1)"
         self.cursor.execute(query, (new_data,))
         if commit:
+            if random.random() < self.roll_back_rate:
+                self.connection.rollback()
+                return
             self.connection.commit()
 
     @rollback_on_failure
@@ -100,6 +110,9 @@ class OpenGauss:
         for _ in range(n):
             # 生成随机数据
             self.insert_one(commit=False)
+        if random.random() < self.roll_back_rate:
+            self.connection.rollback()
+            return
         self.connection.commit()
 
     @rollback_on_failure
@@ -107,6 +120,9 @@ class OpenGauss:
         for _ in range(n):
             # 生成随机数据
             self.delete_one(commit=False)
+        if random.random() < self.roll_back_rate:
+            self.connection.rollback()
+            return
         self.connection.commit()
 
     @rollback_on_failure
@@ -114,6 +130,9 @@ class OpenGauss:
         for _ in range(n):
             # 生成随机数据
             self.update_one(commit=False)
+        if random.random() < self.roll_back_rate:
+            self.connection.rollback()
+            return
         self.connection.commit()
 
     @rollback_on_failure
@@ -145,3 +164,6 @@ class OpenGauss:
             self.cursor.close()
         if self.connection:
             self.connection.close()
+
+    def __del__(self):
+        self.close()

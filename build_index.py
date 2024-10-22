@@ -14,8 +14,8 @@ class Phase1(OpenGauss):
         self.connection.autocommit = True
 
     def create_index(self):
-        sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
-        # sql = '''CREATE INDEX concurrently idx_users_age ON users(age);'''
+        # sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
+        sql = '''CREATE unique INDEX concurrently idx_users_age ON users(id);'''
         self.cursor.execute(sql)
         self.connection.commit()
 
@@ -28,7 +28,7 @@ class Phase2(OpenGauss):
         super().__init__(dbname)
 
     def run(self):
-        num_processes = 5
+        num_processes = 1
         processes = []
         for _ in range(num_processes):
             self.random_operation(1000,op_rate=(4,1,4))
@@ -39,10 +39,10 @@ class Phase3(OpenGauss):
         super().__init__(dbname)
 
     def run(self):
-        num_processes = 5
+        num_processes = 1
         processes = []
         for _ in range(num_processes):
-            self.random_operation(50,op_rate=[1,3,3])
+            self.random_operation(100,op_rate=[3,3,3])
         self.close()
 
 class Phase4(OpenGauss):
@@ -63,7 +63,7 @@ class Phase4(OpenGauss):
     def get_index_data(self, table, columns, index=None):
         # 强制使用索引的查询
         column_str = ', '.join(columns)
-        query = f"SET enable_seqscan = OFF; SELECT {column_str} FROM {table} WHERE ({column_str}) IS NOT NULL;"
+        query = f"SET enable_seqscan = OFF;SET enable_bitmapscan=OFF; SELECT {column_str} FROM {table} WHERE ({column_str}) IS NOT NULL;"
         self.cursor.execute(query)
         index_data = self.cursor.fetchall()
         self.connection.commit()
@@ -88,8 +88,8 @@ class Phase4(OpenGauss):
     
     def run(self):
         table = 'users'
-        columns = ['name', 'email']
-        # columns = ['age']
+        # columns = ['name', 'email']
+        columns = ['id']
          # 获取表中的多列组合数据
         table_data = self.get_table_data(table, columns)
         print(f"Table data count: {len(table_data)}")
