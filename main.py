@@ -30,14 +30,18 @@ def phase4_task():
 
 def insert_data():
     og = OpenGauss(dbname)
+    og.roll_back_rate = -0.1
     og.init_database()
     og.random_operation()
-    og.insert_one()
-    og.insert_many_rows(500)
+    # for i in range(5000):
+    #     og.insert_one()
+    og.insert_many_rows(20000)
     # og.print()
     og.close()
 
-def main():
+def main(db_name):
+    global dbname
+    dbname = db_name
     try:
         # 1. 初始化数据库
         init(dbname)
@@ -45,15 +49,15 @@ def main():
         # 2. 插入一些数据
         insert_data()
 
-        # 3. 创建进程执行在线创建索引任务
-        task1_process = multiprocessing.Process(target=phase1_task)
-        task1_process.start()
-
         # 启动TCP服务器
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(('127.0.0.1', 8080))
         server_socket.listen(1)
         print("Server is listening on port 8080...")
+
+        # 3. 创建进程执行在线创建索引任务
+        task1_process = multiprocessing.Process(target=phase1_task)
+        task1_process.start()
 
         # 4. 等待客户端连接（openGauss进入阶段2）
         conn, addr = server_socket.accept()
@@ -84,4 +88,6 @@ def main():
         print('close')
 
 if __name__ == '__main__':
-    main()
+    for i in range(100):
+        logger.error(f'第{i+1}次测试')
+        main(f'test{i+1}')

@@ -14,8 +14,8 @@ class Phase1(OpenGauss):
         self.connection.autocommit = True
 
     def create_index(self):
-        # sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
-        sql = '''CREATE unique INDEX concurrently idx_users_age ON users(id);'''
+        sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
+        # sql = '''CREATE unique INDEX concurrently idx_users_age ON users(id);'''
         self.cursor.execute(sql)
         self.connection.commit()
 
@@ -31,7 +31,7 @@ class Phase2(OpenGauss):
         num_processes = 1
         processes = []
         for _ in range(num_processes):
-            self.random_operation(1000,op_rate=(4,1,4))
+            self.random_operation(2000,op_rate=(4,1,4))
         self.close()
 
 class Phase3(OpenGauss):
@@ -42,7 +42,7 @@ class Phase3(OpenGauss):
         num_processes = 1
         processes = []
         for _ in range(num_processes):
-            self.random_operation(100,op_rate=[3,3,3])
+            self.random_operation(200,op_rate=[3,3,3])
         self.close()
 
 class Phase4(OpenGauss):
@@ -75,28 +75,33 @@ class Phase4(OpenGauss):
 
         if table_data_set == index_data_set:
             print("The index corresponds correctly with the table data.")
+            logger.error("The index corresponds correctly with the table data.")
         else:
             print("The index does NOT correspond with the table data.")
+            logger.error("The index corresponds correctly with the table data.")
             # 输出差异
             missing_in_index = table_data_set - index_data_set
             missing_in_table = index_data_set - table_data_set
 
             if missing_in_index:
                 print("Data in table but missing in index:", missing_in_index)
+                logger.error(f"Data in table but missing in index:{missing_in_index}")
             if missing_in_table:
                 print("Data in index but missing in table:", missing_in_table)
+                logger.error(f"Data in index but missing in table:{missing_in_table}")
     
     def run(self):
         table = 'users'
-        # columns = ['name', 'email']
-        columns = ['id']
+        columns = ['name', 'email']
+        # columns = ['id']
          # 获取表中的多列组合数据
         table_data = self.get_table_data(table, columns)
         print(f"Table data count: {len(table_data)}")
-
+        logger.error(f"Table data count: {len(table_data)}")
         # 获取索引中的多列组合数据
         index_data = self.get_index_data(table, columns)
         print(f"Index data count: {len(index_data)}")
+        logger.error(f"Index data count: {len(index_data)}")
         # 比较表数据和索引数据
         self.compare_data(table_data, index_data)
         self.close()
@@ -112,12 +117,12 @@ def init(dbname):
         # 插入数据（在事务中）
         insert_query = f"""DROP DATABASE IF EXISTS {dbname};"""
         cursor.execute(insert_query)
-        logger.info(f'删除数据库 {dbname}')
+        print(f'删除数据库 {dbname}')
         connection.commit()
         # 插入数据（在事务中）
         insert_query = f"""CREATE DATABASE {dbname};"""
         cursor.execute(insert_query)
-        logger.info(f'创建数据库 {dbname}')
+        print(f'创建数据库 {dbname}')
         connection.commit()
 
     except psycopg2.Error as e:
@@ -133,7 +138,22 @@ def init(dbname):
             connection.close()
 
 if __name__ == '__main__':
-    phase4 = Phase4('test1')
+    db_name = 'test1'
+    # init(db_name)
+    # og = OpenGauss(db_name)
+    # og.init_database()
+    # og.random_operation()
+    # og.insert_one()
+    # og.insert_many_rows(1000)
+    # while(not og.insert_one()):
+    #     logger.info('没有回滚')
+    # # og.print()
+    # og.close()
+    # phase1 = Phase1(db_name)
+    # phase1.run()
+    # phase2 = Phase3('test1')
+    # phase2.run()
+    phase4 = Phase4(db_name)
     phase4.run()
 
     # phase2 = Phase2('test1')
