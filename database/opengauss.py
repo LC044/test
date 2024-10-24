@@ -51,10 +51,19 @@ class OpenGauss:
         -- 创建表，并包含主键和其他字段
         CREATE TABLE users (
             id SERIAL PRIMARY KEY,
-            name VARCHAR(100),
+            name VARCHAR(255),
             age INT,
-            email VARCHAR(255)
+            email VARCHAR(255),
+            detail TEXT
         ) with (storage_type=ustore);
+        INSERT INTO users (name, age, email,detail)
+        SELECT 
+            'User ' || gs,                             -- 生成名称
+            (RANDOM() * 100)::INT AS age,             -- 随机年龄0-100
+            'user' || gs || '@example.com',            -- 生成电子邮件
+            'detail:'|| gs || 'user@example.com 计算机学院 10086'
+        FROM 
+            GENERATE_SERIES(1, 100000) AS gs;           -- 生成 1 到 1000 的序列
         '''
         self.cursor.execute(sql)
         self.connection.commit()

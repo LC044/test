@@ -14,36 +14,54 @@ class Phase1(OpenGauss):
         self.connection.autocommit = True
 
     def create_index(self):
+        logger.error(f'{self.__class__.__name__} start build  index concurrently')
         sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
         # sql = '''CREATE unique INDEX concurrently idx_users_age ON users(id);'''
         self.cursor.execute(sql)
         self.connection.commit()
+        logger.error(f'{self.__class__.__name__} end build index concurrently')
 
     def run(self):
         self.create_index()
         self.close()
 
-class Phase2(OpenGauss):
+class Phase2:
     def __init__(self, dbname):
-        super().__init__(dbname)
-
+        self.dbname = dbname
+        
+    def task(self):
+        og = OpenGauss(self.dbname)
+        og.random_operation(500,op_rate=[3,0,3])
+        og.close()
+    
     def run(self):
-        num_processes = 1
+        num_processes = 5
         processes = []
         for _ in range(num_processes):
-            self.random_operation(2000,op_rate=(4,1,4))
-        self.close()
+            task1_process = multiprocessing.Process(target=self.task)
+            task1_process.start()
+            processes.append(task1_process)
+        for process in processes:
+            process.join()
 
-class Phase3(OpenGauss):
+class Phase3:
     def __init__(self, dbname):
-        super().__init__(dbname)
-
+        self.dbname = dbname
+        
+    def task(self):
+        og = OpenGauss(self.dbname)
+        og.random_operation(500,op_rate=[0,3,3])
+        og.close()
+    
     def run(self):
-        num_processes = 1
+        num_processes = 5
         processes = []
         for _ in range(num_processes):
-            self.random_operation(200,op_rate=[3,3,3])
-        self.close()
+            task1_process = multiprocessing.Process(target=self.task)
+            task1_process.start()
+            processes.append(task1_process)
+        for process in processes:
+            process.join()
 
 class Phase4(OpenGauss):
     """

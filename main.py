@@ -1,6 +1,7 @@
 import multiprocessing
 import socket
 import traceback
+import time
 
 from build_index import Phase1, Phase2, Phase4, init, Phase3
 from database.opengauss import OpenGauss
@@ -13,16 +14,16 @@ def phase1_task():
     phase1.run()
 
 def phase2_task():
-    print('阶段二开始')
+    logger.error('阶段二开始')
     phase2 = Phase2(dbname)
     phase2.run()
-    print('阶段二结束')
+    logger.error('阶段二结束')
 
 def phase3_task():
-    print('阶段三开始')
+    logger.error('阶段三开始')
     phase3 = Phase3(dbname)
     phase3.run()
-    print('阶段三结束')
+    logger.error('阶段三结束')
 
 def phase4_task():
     phase4 = Phase4(dbname)
@@ -35,7 +36,7 @@ def insert_data():
     og.random_operation()
     # for i in range(5000):
     #     og.insert_one()
-    og.insert_many_rows(20000)
+    og.insert_many_rows(10000)
     # og.print()
     og.close()
 
@@ -43,6 +44,8 @@ def main(db_name):
     global dbname
     dbname = db_name
     try:
+        st_time = time.time()
+        logger.error(f'start test,time:{st_time}')
         # 1. 初始化数据库
         init(dbname)
 
@@ -58,7 +61,8 @@ def main(db_name):
         # 3. 创建进程执行在线创建索引任务
         task1_process = multiprocessing.Process(target=phase1_task)
         task1_process.start()
-
+        time.sleep(1)
+    
         # 4. 等待客户端连接（openGauss进入阶段2）
         conn, addr = server_socket.accept()
         print(f"Connection from {addr} established.")
@@ -83,11 +87,12 @@ def main(db_name):
         # 9. 执行任务4，验证索引的正确性
         phase4_task()
     finally:
-        logger.error(traceback.format_exc())
+        en_time = time.time()
+        logger.error(f'end test,time:{en_time},cost:{en_time-st_time}s')
+        # logger.error(traceback.format_exc())
         server_socket.close()
-        print('close')
 
 if __name__ == '__main__':
-    for i in range(100):
+    for i in range(1):
         logger.error(f'第{i+1}次测试')
         main(f'test{i+1}')
