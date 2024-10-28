@@ -42,6 +42,7 @@ class OpenGauss:
         self.connection = psycopg2.connect(**my_connection_params)
         self.cursor = self.connection.cursor()
         self.roll_back_rate = 0.1
+        self.op_id = 0
 
     def init_database(self):
         sql = '''
@@ -56,14 +57,20 @@ class OpenGauss:
             email VARCHAR(255),
             detail TEXT
         ) with (storage_type=ustore);
+
+        Alter table users set (parallel_workers=4);
+
+        -- 为主键字段创建索引（如果主键已经自动创建索引，可以省略这一步）
+        CREATE INDEX idx_users_id ON users(id);
+
         INSERT INTO users (name, age, email,detail)
-        SELECT 
+        SELECT
             'User ' || gs,                             -- 生成名称
             (RANDOM() * 100)::INT AS age,             -- 随机年龄0-100
             'user' || gs || '@example.com',            -- 生成电子邮件
             'detail:'|| gs || 'user@example.com 计算机学院 10086'
-        FROM 
-            GENERATE_SERIES(1, 100000) AS gs;           -- 生成 1 到 1000 的序列
+        FROM
+            GENERATE_SERIES(1, 5000) AS gs;           -- 生成 1 到 1000 的序列
         '''
         self.cursor.execute(sql)
         self.connection.commit()
@@ -76,11 +83,12 @@ class OpenGauss:
         random_age = fake.random_int(min=18, max=80)
         random_email = fake.email()
         self.cursor.execute(sql, [random_name, random_age, random_email])
-        logger.info(f'{self.__class__.__name__} insert 1 {[random_name, random_age, random_email]} {commit}')
+        logger.info(f'{self.__class__.__name__} {self.op_id} insert 1 {[random_name, random_age, random_email]} {commit}')
         if commit:
+            self.op_id+=1
             if random.random() < self.roll_back_rate:
                 self.connection.rollback()
-                logger.info(f"{self.__class__.__name__} insert 1 rollback ('{random_name}','{random_email}'),age:{random_age}")
+                logger.info(f"{self.__class__.__name__} {self.op_id} insert 1 rollback ('{random_name}','{random_email}'),age:{random_age}")
                 return True
             self.connection.commit()
 
@@ -94,11 +102,12 @@ class OpenGauss:
         if result:
             query = "DELETE FROM users WHERE id = %s"
             self.cursor.execute(query,(result[0],))
-            logger.info(f'{self.__class__.__name__} delete 1 {result} {commit}')
+            logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 {result} {commit}')
             if commit:
+                self.op_id+=1
                 if random.random() < self.roll_back_rate:
                     self.connection.rollback()
-                    logger.info(f'{self.__class__.__name__} delete 1 rollback {result} {commit}')
+                    logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 rollback {result} {commit}')
                     return
                 self.connection.commit()
 
@@ -111,21 +120,23 @@ class OpenGauss:
         if not result:
             return
         choice = random.random()
-        if choice < 0.33:
-            new_data = fake.random_int(min=18, max=80)
-            query = "UPDATE users SET age = %s WHERE id = %s"
-        elif choice < 0.66:
+        # if choice < 0.33:
+        #     new_data = fake.random_int(min=18, max=80)
+        #     query = "UPDATE users SET age = %s WHERE id = %s"
+        # el
+        if choice < 0.5:
             new_data = fake.name()
             query = "UPDATE users SET name = %s WHERE id = %s"
         else:
             new_data = fake.email()
             query = "UPDATE users SET email = %s WHERE id = %s"
-        logger.info(f'{self.__class__.__name__} update 1 {query % (new_data,result[0])} {result} {commit}')
+        logger.info(f'{self.__class__.__name__} {self.op_id} update 1 {query % (new_data,result[0])} {result} {commit}')
         self.cursor.execute(query, (new_data,result[0]))
         if commit:
+            self.op_id+=1
             if random.random() < self.roll_back_rate:
                 self.connection.rollback()
-                logger.info(f'{self.__class__.__name__} update rollback {query % (new_data,result[0])} {result} {commit}')
+                logger.info(f'{self.__class__.__name__} {self.op_id} update rollback {query % (new_data,result[0])} {result} {commit}')
                 return
             self.connection.commit()
 
@@ -147,9 +158,11 @@ class OpenGauss:
         # for _ in range(n):
         #     # 生成随机数据
         #     self.insert_one(commit=False)
+        self.op_id+=1
+        logger.info(f'{self.__class__.__name__} {self.op_id} insert 10086 {data}')
         if random.random() < self.roll_back_rate:
             self.connection.rollback()
-            logger.info(f'{self.__class__.__name__} insert 10086 rollback')
+            logger.info(f'{self.__class__.__name__} {self.op_id} insert 10086 rollback')
             return
         self.connection.commit()
 
@@ -158,9 +171,10 @@ class OpenGauss:
         for _ in range(n):
             # 生成随机数据
             self.delete_one(commit=False)
+        self.op_id+=1
         if random.random() < self.roll_back_rate:
             self.connection.rollback()
-            logger.info(f'{self.__class__.__name__} delete 10086 rollback')
+            logger.info(f'{self.__class__.__name__} {self.op_id} delete 10086 rollback')
             return
         self.connection.commit()
 
@@ -169,9 +183,10 @@ class OpenGauss:
         for _ in range(n):
             # 生成随机数据
             self.update_one(commit=False)
+        self.op_id+=1
         if random.random() < self.roll_back_rate:
             self.connection.rollback()
-            logger.info(f'{self.__class__.__name__} update 10086 rollback')
+            logger.info(f'{self.__class__.__name__} {self.op_id} update 10086 rollback')
             return
         self.connection.commit()
 
