@@ -58,10 +58,7 @@ class OpenGauss:
             detail TEXT
         ) with (storage_type=ustore);
 
-        Alter table users set (parallel_workers=4);
-
-        -- 为主键字段创建索引（如果主键已经自动创建索引，可以省略这一步）
-        CREATE INDEX idx_users_id ON users(id);
+        -- Alter table users set (parallel_workers=4);
 
         INSERT INTO users (name, age, email,detail)
         SELECT
@@ -70,7 +67,7 @@ class OpenGauss:
             'user' || gs || '@example.com',            -- 生成电子邮件
             'detail:'|| gs || 'user@example.com 计算机学院 10086'
         FROM
-            GENERATE_SERIES(1, 5000) AS gs;           -- 生成 1 到 1000 的序列
+            GENERATE_SERIES(1, 500000) AS gs;           -- 生成 1 到 1000 的序列
         '''
         self.cursor.execute(sql)
         self.connection.commit()

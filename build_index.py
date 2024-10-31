@@ -14,11 +14,16 @@ class Phase1(OpenGauss):
         self.connection.autocommit = True
 
     def create_index(self):
+        sql = 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;'
+        self.cursor.execute(sql)
         logger.error(f'{self.__class__.__name__} start build  index concurrently')
         sql = '''CREATE INDEX concurrently idx_users_name_email ON users(name,email);'''
         # sql = '''CREATE unique INDEX concurrently idx_users_age ON users(id);'''
-        self.cursor.execute(sql)
-        self.connection.commit()
+        try:
+            self.cursor.execute(sql)
+            self.connection.commit()
+        except:
+            logger.error(traceback.format_exc())
         logger.error(f'{self.__class__.__name__} end build index concurrently')
 
     def run(self):
@@ -31,7 +36,7 @@ class Phase2:
         
     def task(self):
         og = OpenGauss(self.dbname)
-        og.random_operation(500,op_rate=[3,0,3])
+        og.random_operation(10,op_rate=[3,3,3])
         og.close()
     
     def run(self):
@@ -47,12 +52,12 @@ class Phase2:
 class Phase3:
     def __init__(self, dbname):
         self.dbname = dbname
-        
+
     def task(self):
         og = OpenGauss(self.dbname)
-        og.random_operation(500,op_rate=[0,3,3])
+        og.random_operation(10,op_rate=[3,3,3])
         og.close()
-    
+
     def run(self):
         num_processes = 5
         processes = []
@@ -156,7 +161,7 @@ def init(dbname):
             connection.close()
 
 if __name__ == '__main__':
-    db_name = 'test1'
+    db_name = 'test2'
     # init(db_name)
     # og = OpenGauss(db_name)
     # og.init_database()
