@@ -65,6 +65,6 @@ def main(db_name):
 if __name__ == '__main__':
     for i in range(1):
         logger.error(f'第{i+1}次测试')
-        main(f'test{i+1}')
+        main(f'test{i+2}')
     # start index_insert index_id:1599210 xid:1792288,ctid:(12682, 61)
     # start index_insert index_id:1599212 xid:1792401,ctid:(13642, 57)

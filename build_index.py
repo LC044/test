@@ -33,14 +33,14 @@ class Phase1(OpenGauss):
 class Phase2:
     def __init__(self, dbname):
         self.dbname = dbname
-        
+
     def task(self):
         og = OpenGauss(self.dbname)
-        og.random_operation(10,op_rate=[3,3,3])
+        og.random_operation(100,op_rate=[3,3,4])
         og.close()
     
     def run(self):
-        num_processes = 5
+        num_processes = 1 # 进程个数
         processes = []
         for _ in range(num_processes):
             task1_process = multiprocessing.Process(target=self.task)
@@ -55,11 +55,11 @@ class Phase3:
 
     def task(self):
         og = OpenGauss(self.dbname)
-        og.random_operation(10,op_rate=[3,3,3])
+        og.random_operation(100,op_rate=[3,3,4])
         og.close()
 
     def run(self):
-        num_processes = 5
+        num_processes = 5 # 进程个数
         processes = []
         for _ in range(num_processes):
             task1_process = multiprocessing.Process(target=self.task)
@@ -93,6 +93,7 @@ class Phase4(OpenGauss):
         return index_data
 
     def compare_data(self, table_data, index_data):
+        # todo 逐条数据进行对比 
         table_data_set = set(table_data)
         index_data_set = set(index_data)
 

@@ -93,8 +93,7 @@ def main(db_name):
         server_socket.close()
 
 if __name__ == '__main__':
-    for i in range(1):
+    n = 1 # 测试个数
+    for i in range(n):
         logger.error(f'第{i+1}次测试')
         main(f'test{i+1}')
-    # start index_insert index_id:1599210 xid:1792288,ctid:(12682, 61)
-    # start index_insert index_id:1599212 xid:1792401,ctid:(13642, 57)

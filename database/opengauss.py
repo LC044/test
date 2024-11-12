@@ -15,6 +15,8 @@ connection_params = {
     'password': 'zhou@123'
 }
 
+total_num = 50000
+
 # 定义装饰器，处理异常并回滚事务
 def rollback_on_failure(func):
     def wrapper(self, *args, **kwargs):
@@ -41,11 +43,11 @@ class OpenGauss:
         my_connection_params['dbname'] = dbname
         self.connection = psycopg2.connect(**my_connection_params)
         self.cursor = self.connection.cursor()
-        self.roll_back_rate = 0.1
+        self.roll_back_rate = 0.1 # 回滚率
         self.op_id = 0
 
-    def init_database(self):
-        sql = '''
+    def init_database(self, num=50000):
+        sql = f'''
         -- 删除表如果它存在
         DROP TABLE IF EXISTS users;
 
@@ -67,7 +69,7 @@ class OpenGauss:
             'user' || gs || '@example.com',            -- 生成电子邮件
             'detail:'|| gs || 'user@example.com 计算机学院 10086'
         FROM
-            GENERATE_SERIES(1, 500000) AS gs;           -- 生成 1 到 1000 的序列
+            GENERATE_SERIES(1, {num}) AS gs;           -- 生成 1 到 1000 的序列
         '''
         self.cursor.execute(sql)
         self.connection.commit()
@@ -93,47 +95,54 @@ class OpenGauss:
     def delete_one(self,commit=True):
         # return
         # 随机删除一条记录
-        sql = 'SELECT id,name,email FROM users ORDER BY RANDOM() LIMIT 1;'
-        self.cursor.execute(sql)
+        # sql = 'SELECT id,name,email FROM users ORDER BY RANDOM() LIMIT 1;'
+        # sql = 'SELECT id,name,email FROM users ORDER BY RANDOM() LIMIT 1;'
+        # self.cursor.execute(sql)
+        # result = self.cursor.fetchone()
+        # if result:
+        random_id = random.randint(0, total_num - 1)
+        sql = 'SELECT id,name,email FROM users where id=%s;'
+        self.cursor.execute(sql,(random_id,))
         result = self.cursor.fetchone()
-        if result:
-            query = "DELETE FROM users WHERE id = %s"
-            self.cursor.execute(query,(result[0],))
-            logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 {result} {commit}')
-            if commit:
-                self.op_id+=1
-                if random.random() < self.roll_back_rate:
-                    self.connection.rollback()
-                    logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 rollback {result} {commit}')
-                    return
-                self.connection.commit()
+        if not result:
+            return
+        query = "DELETE FROM users WHERE id = %s"
+        self.cursor.execute(query,(random_id,))
+        logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 {result} {commit}')
+        if commit:
+            self.op_id+=1
+            if random.random() < self.roll_back_rate:
+                self.connection.rollback()
+                logger.info(f'{self.__class__.__name__} {self.op_id} delete 1 rollback {result} {commit}')
+                return
+            self.connection.commit()
 
     @rollback_on_failure
     def update_one(self,commit=True):
         # return
-        sql = 'SELECT id,name,email FROM users ORDER BY RANDOM() LIMIT 1;'
-        self.cursor.execute(sql)
+        random_id = random.randint(0, total_num - 1)
+        sql = 'SELECT id,name,email FROM users where id=%s;'
+        self.cursor.execute(sql,(random_id,))
         result = self.cursor.fetchone()
         if not result:
             return
         choice = random.random()
-        # if choice < 0.33:
-        #     new_data = fake.random_int(min=18, max=80)
-        #     query = "UPDATE users SET age = %s WHERE id = %s"
-        # el
-        if choice < 0.5:
+        if choice < 0.33:
+            new_data = fake.random_int(min=18, max=80)
+            query = "UPDATE users SET age = %s WHERE id = %s"
+        elif choice < 0.5:
             new_data = fake.name()
             query = "UPDATE users SET name = %s WHERE id = %s"
         else:
             new_data = fake.email()
             query = "UPDATE users SET email = %s WHERE id = %s"
-        logger.info(f'{self.__class__.__name__} {self.op_id} update 1 {query % (new_data,result[0])} {result} {commit}')
-        self.cursor.execute(query, (new_data,result[0]))
+        logger.info(f'{self.__class__.__name__} {self.op_id} update 1 {query % (new_data,random_id)} {result} {commit}')
+        self.cursor.execute(query, (new_data,random_id))
         if commit:
             self.op_id+=1
             if random.random() < self.roll_back_rate:
                 self.connection.rollback()
-                logger.info(f'{self.__class__.__name__} {self.op_id} update rollback {query % (new_data,result[0])} {result} {commit}')
+                logger.info(f'{self.__class__.__name__} {self.op_id} update rollback {query % (new_data,random_id)} {result} {commit}')
                 return
             self.connection.commit()
 
@@ -189,9 +198,13 @@ class OpenGauss:
 
     @rollback_on_failure
     def random_operation(self,op_num=100,op_rate=(3,3,4)):
-        operations_insert = [self.insert_one, self.insert_many_rows]*op_rate[0]
-        operations_delete = [self.delete_one, self.delete_many_rows]*op_rate[1]
-        operations_update = [self.update_one, self.update_many_rows]*op_rate[2]
+        """
+        op_num: 操作的个数
+        op_rate: insert,delete,update的比例
+        """
+        operations_insert = [self.insert_one]*op_rate[0]
+        operations_delete = [self.delete_one]*op_rate[1]
+        operations_update = [self.update_one]*op_rate[2]
         operations = operations_insert + operations_delete + operations_update
         for i in tqdm(range(op_num)):
             try:

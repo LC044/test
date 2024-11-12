@@ -22,53 +22,27 @@ connection_params = {
 }
 ```
 
+有问题的话可以尝试把用户名和密码字段删了，获取把端口和主机删了，都试试
+
 ## 运行main.py
 
 ```shell
 python main.py
 ```
 
-```sql
-SELECT
-    c.oid AS tuple_id,               -- 数据行的OID
-    c.reltuples AS tuple_count,      -- 数据行的计数
-    t.xmin AS xmin,                  -- 记录插入的事务ID
-    t.xmax AS xmax                   -- 记录删除的事务ID
-FROM
-    pg_class c                        -- 表的系统目录
-JOIN
-    pg_index i ON c.oid = i.indrelid -- 索引与表关联
-JOIN
-    pg_attribute a ON a.attrelid = c.oid
-JOIN
-    pg_statistic s ON s.starelid = c.oid
-JOIN
-    (SELECT
-        t.oid,
-        xmin,
-        xmax
-     FROM
-        users t
-    ) AS t ON t.oid = c.oid
-WHERE
-    i.indexrelid = 'idx_users_name_email'::regclass;
+## 其他配置
 
-SELECT
-    t.oid AS tuple_id,               -- 数据行的OID
-    t.xmin AS xmin,                  -- 记录插入的事务ID
-    t.xmax AS xmax                   -- 记录删除的事务ID
-FROM
-    users t                 -- 直接从目标表中查询
-JOIN
-    pg_index i ON i.indrelid = 'users'::regclass -- 替换为表名
-JOIN
-    pg_class c ON c.oid = i.indexrelid
-JOIN
-    pg_attribute a ON a.attrelid = c.oid
-JOIN
-    pg_statistic s ON s.starelid = c.oid
-WHERE
-    i.indexrelid = 'idx_users_name_email'::regclass; -- 替换为索引名
+OpenGauss.roll_back_rate: 回滚率，每个DML操作都有一定概率回滚，可以通过该参数调整回滚率
+OpenGauss.init_database: 初始化表，修改这部分可以改变表的数据
 
+```python
+og = OpenGauss(self.dbname)
 
+# op_num: 操作的个数
+# op_rate: insert,delete,update的比例
+og.random_operation(op_num=100,op_rate=[3,3,4])
+
+og.close()
 ```
+
+可以通过阶段二和阶段三的操作个数和操作比例控制不同的情况，例如，阶段二全设置为insert，阶段三全设置成delete，就很容易出现阶段三删除阶段二插入的数据这种情况。
